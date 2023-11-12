@@ -54,7 +54,11 @@ struct FlagFilter {
 }
 
 impl CombinedFilter {
-    pub fn new(filter1: Box<dyn Filtering>, filter2: Box<dyn Filtering>, operator: BoolOperator) -> CombinedFilter {
+    pub fn new(filter1: Box<dyn Filtering>, filter2: Box<dyn Filtering>, operator: BoolOperator,
+    ) -> CombinedFilter {
+        assert!(matches!(operator, BoolOperator::AND | BoolOperator::OR | BoolOperator::XOR |
+            BoolOperator::XNOR | BoolOperator::NAND | BoolOperator::NOR | BoolOperator::IMPLIES),
+                "Operator must be one of AND, OR, XOR, XNOR, NAND, NOR, or IMPLIES!");
         CombinedFilter {
             filter1,
             filter2,
@@ -139,6 +143,7 @@ impl Filtering for CombinedFilter {
         format!("CombinedFilter(filter1={}, filter2={}, operator={:?})", self.filter1.repr(), self.filter2.repr(), self.operator)
     }
 }
+
 impl Filtering for FlagFilter {
     fn apply_to(&self, record: &Record) -> bool {
         let flags = record.flag();
