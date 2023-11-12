@@ -1,6 +1,16 @@
-use bam::record::tags::TagValue;
+extern crate bam;
+extern crate clap;
 
-#[derive(Debug, PartialEq)]
+use bam::record::tags::TagValue;
+use clap::ValueEnum;
+
+#[derive(Debug, PartialEq, Clone, ValueEnum)]
+pub enum SupportedFormats {
+    BAM,
+    SAM
+}
+
+#[derive(Debug, PartialEq, Clone, ValueEnum)]
 pub enum BoolOperator {
     AND,
     OR,
@@ -8,7 +18,7 @@ pub enum BoolOperator {
     XNOR,
     NAND,
     NOR,
-    IMPLIES
+    IMPLIES,
 }
 
 pub fn _opposite(boolean: bool, opposite: bool) -> bool {
