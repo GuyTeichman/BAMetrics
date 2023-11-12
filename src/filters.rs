@@ -18,7 +18,8 @@ pub trait Filtering {
     fn name(&self) -> &String;
 }
 
-
+// TODO: uniquely aligned
+// TODO: individual flag functions
 struct CombinedFilter {
     name: String,
     filter1: Box<dyn Filtering>,
