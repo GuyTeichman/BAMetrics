@@ -10,7 +10,6 @@ extern crate serde_json;
 
 use serde::{Deserialize, Serialize};
 
-
 pub trait Filtering {
     fn apply_to(&self, record: &Record) -> bool;
 
@@ -34,6 +33,7 @@ struct LengthFilter {
     max_len: u32,
     opposite: bool,
 }
+
 
 struct TagFilter<'a> {
     name: String,
@@ -99,8 +99,8 @@ impl LengthFilter {
     }
 }
 
-impl TagFilter<'_> {
-    pub fn new(name: String, tag_name: TagName, tag_value: TagValue, opposite: bool) -> TagFilter {
+impl<'a> TagFilter<'a> {
+    pub fn new(name: String, tag_name: TagName, tag_value: TagValue<'a>, opposite: bool) -> TagFilter<'a> {
         TagFilter {
             name,
             tag_name,
@@ -214,7 +214,7 @@ impl Filtering for LengthFilter {
     }
 }
 
-impl Filtering for TagFilter<'_> {
+impl<'a> Filtering for TagFilter<'a> {
     fn apply_to(&self, record: &Record) -> bool {
         return if let Some(tag) = record.tags().get(&self.tag_name) {
             if utils::_are_tag_values_equal(&tag, &self.tag_value) {
@@ -228,7 +228,15 @@ impl Filtering for TagFilter<'_> {
     }
 
     fn repr(&self) -> String {
-        format!("TagFilter(name={}, tag_name={:?}, tag_value={:?}, opposite={})", self.name, self.tag_name, self.tag_value, self.opposite)
+        let formatted_tag = match self.tag_value {
+            TagValue::Char(c) => format!("'{}'", c),
+            TagValue::Int(i, _) => format!("{}", i),
+            TagValue::Float(f) => format!("{}", f),
+            TagValue::String(s, _) => format!("'{:#?}'", s),
+            TagValue::IntArray(_) => format!("IntArray"),
+            TagValue::FloatArray(_) => format!("FloatArray"),
+        };
+        format!("TagFilter(name={}, tag_name={:#?}, tag_value={}, opposite={})", self.name, self.tag_name, formatted_tag, self.opposite)
     }
     fn name(&self) -> &String {
         &self.name
