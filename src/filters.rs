@@ -5,61 +5,82 @@ use bam::record::tags::{TagName, TagValue};
 use crate::utils;
 use utils::BoolOperator;
 
+extern crate serde;
+extern crate serde_json;
+
+use serde::{Deserialize, Serialize};
+
+
 pub trait Filtering {
     fn apply_to(&self, record: &Record) -> bool;
 
     fn repr(&self) -> String;
+
+    fn name(&self) -> &String;
 }
 
 
 struct CombinedFilter {
+    name: String,
     filter1: Box<dyn Filtering>,
     filter2: Box<dyn Filtering>,
     operator: BoolOperator,
 }
 
+#[derive(Serialize, Deserialize)]
 struct LengthFilter {
+    name: String,
     min_len: u32,
     max_len: u32,
     opposite: bool,
 }
 
 struct TagFilter<'a> {
+    name: String,
     tag_name: TagName,
     tag_value: TagValue<'a>,
     opposite: bool,
 }
 
+#[derive(Serialize, Deserialize)]
 struct MapqFilter {
+    name: String,
     min_mapq: u8,
     max_mapq: u8,
     opposite: bool,
 }
 
+#[derive(Serialize, Deserialize)]
 struct RefNameFilter {
+    name: String,
     ref_id: i32,
     opposite: bool,
 }
 
+#[derive(Serialize, Deserialize)]
 struct NthNucleotideFilter {
+    name: String,
     position: i64,
     nucleotide: char,
     n_is_wildcard: bool,
     opposite: bool,
 }
 
+#[derive(Serialize, Deserialize)]
 struct FlagFilter {
+    name: String,
     remove_flags: u16,
     opposite: bool,
 }
 
 impl CombinedFilter {
-    pub fn new(filter1: Box<dyn Filtering>, filter2: Box<dyn Filtering>, operator: BoolOperator,
+    pub fn new(name: String, filter1: Box<dyn Filtering>, filter2: Box<dyn Filtering>, operator: BoolOperator,
     ) -> CombinedFilter {
         assert!(matches!(operator, BoolOperator::AND | BoolOperator::OR | BoolOperator::XOR |
             BoolOperator::XNOR | BoolOperator::NAND | BoolOperator::NOR | BoolOperator::IMPLIES),
                 "Operator must be one of AND, OR, XOR, XNOR, NAND, NOR, or IMPLIES!");
         CombinedFilter {
+            name,
             filter1,
             filter2,
             operator,
@@ -68,8 +89,9 @@ impl CombinedFilter {
 }
 
 impl LengthFilter {
-    pub fn new(min_len: u32, max_len: u32, opposite: bool) -> LengthFilter {
+    pub fn new(name: String, min_len: u32, max_len: u32, opposite: bool) -> LengthFilter {
         LengthFilter {
+            name,
             min_len,
             max_len,
             opposite,
@@ -78,8 +100,9 @@ impl LengthFilter {
 }
 
 impl TagFilter<'_> {
-    pub fn new(tag_name: TagName, tag_value: TagValue, opposite: bool) -> TagFilter {
+    pub fn new(name: String, tag_name: TagName, tag_value: TagValue, opposite: bool) -> TagFilter {
         TagFilter {
+            name,
             tag_name,
             tag_value,
             opposite,
@@ -88,8 +111,9 @@ impl TagFilter<'_> {
 }
 
 impl MapqFilter {
-    pub fn new(min_mapq: u8, max_mapq: u8, opposite: bool) -> MapqFilter {
+    pub fn new(name: String, min_mapq: u8, max_mapq: u8, opposite: bool) -> MapqFilter {
         MapqFilter {
+            name,
             min_mapq,
             max_mapq,
             opposite,
@@ -98,15 +122,20 @@ impl MapqFilter {
 }
 
 impl RefNameFilter {
-    pub fn new(ref_id: i32, opposite: bool) -> RefNameFilter {
-        RefNameFilter { ref_id, opposite }
+    pub fn new(name: String, ref_id: i32, opposite: bool) -> RefNameFilter {
+        RefNameFilter {
+            name,
+            ref_id,
+            opposite,
+        }
     }
 }
 
 impl NthNucleotideFilter {
-    pub fn new(position: i64, nucleotide: char, n_is_wildcard: bool, opposite: bool) -> NthNucleotideFilter {
+    pub fn new(name: String, position: i64, nucleotide: char, n_is_wildcard: bool, opposite: bool) -> NthNucleotideFilter {
         assert!(matches!(nucleotide, 'A' | 'C' | 'G' | 'T' | 'N'), "Nucleotide must be one of A, C, G, T, or N!");
         NthNucleotideFilter {
+            name,
             position,
             nucleotide,
             n_is_wildcard,
@@ -116,8 +145,9 @@ impl NthNucleotideFilter {
 }
 
 impl FlagFilter {
-    pub fn new(remove_flags: u16, opposite: bool) -> FlagFilter {
+    pub fn new(name: String, remove_flags: u16, opposite: bool) -> FlagFilter {
         FlagFilter {
+            name,
             remove_flags,
             opposite,
         }
@@ -140,7 +170,10 @@ impl Filtering for CombinedFilter {
     }
 
     fn repr(&self) -> String {
-        format!("CombinedFilter(filter1={}, filter2={}, operator={:?})", self.filter1.repr(), self.filter2.repr(), self.operator)
+        format!("CombinedFilter(name={}, filter1={}, filter2={}, operator={:?})", self.name, self.filter1.name(), self.filter2.name(), self.operator)
+    }
+    fn name(&self) -> &String {
+        &self.name
     }
 }
 
@@ -155,7 +188,10 @@ impl Filtering for FlagFilter {
     }
 
     fn repr(&self) -> String {
-        format!("FlagFilter(remove_flags={}, opposite={})", self.remove_flags, self.opposite)
+        format!("FlagFilter(name={}, remove_flags={}, opposite={})", self.name, self.remove_flags, self.opposite)
+    }
+    fn name(&self) -> &String {
+        &self.name
     }
 }
 
@@ -171,7 +207,10 @@ impl Filtering for LengthFilter {
     }
 
     fn repr(&self) -> String {
-        format!("LengthFilter(min_len={}, max_len={}, opposite={})", self.min_len, self.max_len, self.opposite)
+        format!("LengthFilter(name={}, min_len={}, max_len={}, opposite={})", self.name, self.min_len, self.max_len, self.opposite)
+    }
+    fn name(&self) -> &String {
+        &self.name
     }
 }
 
@@ -189,7 +228,10 @@ impl Filtering for TagFilter<'_> {
     }
 
     fn repr(&self) -> String {
-        format!("TagFilter(tag_name={:?}, tag_value={:?}, opposite={})", self.tag_name, self.tag_value, self.opposite)
+        format!("TagFilter(name={}, tag_name={:?}, tag_value={:?}, opposite={})", self.name, self.tag_name, self.tag_value, self.opposite)
+    }
+    fn name(&self) -> &String {
+        &self.name
     }
 }
 
@@ -204,7 +246,10 @@ impl Filtering for MapqFilter {
     }
 
     fn repr(&self) -> String {
-        format!("MapqFilter(min_mapq={}, max_mapq={}, opposite={})", self.min_mapq, self.max_mapq, self.opposite)
+        format!("MapqFilter(name={}, min_mapq={}, max_mapq={}, opposite={})", self.name, self.min_mapq, self.max_mapq, self.opposite)
+    }
+    fn name(&self) -> &String {
+        &self.name
     }
 }
 
@@ -215,7 +260,10 @@ impl Filtering for RefNameFilter {
     }
 
     fn repr(&self) -> String {
-        format!("RefNameFilter(ref_id={}, opposite={})", self.ref_id, self.opposite)
+        format!("RefNameFilter(name={}, ref_id={}, opposite={})", self.name, self.ref_id, self.opposite)
+    }
+    fn name(&self) -> &String {
+        &self.name
     }
 }
 
@@ -244,7 +292,10 @@ impl Filtering for NthNucleotideFilter {
     }
 
     fn repr(&self) -> String {
-        format!("NthNucleotideFilter(position={}, nucleotide={:?}, opposite={})", self.position, self.nucleotide, self.opposite)
+        format!("NthNucleotideFilter(name={}, position={}, nucleotide={:?}, opposite={})", self.name, self.position, self.nucleotide, self.opposite)
+    }
+    fn name(&self) -> &String {
+        &self.name
     }
 }
 
