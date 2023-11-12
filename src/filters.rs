@@ -1,14 +1,17 @@
 extern crate bam;
-
-use bam::Record;
-use bam::record::tags::{TagName, TagValue};
-use crate::utils;
-use utils::BoolOperator;
-
 extern crate serde;
 extern crate serde_json;
 
-use serde::{Deserialize, Serialize};
+use bam::Record;
+use bam::record::tags::{TagName, TagValue};
+use serde::{
+    ser::{SerializeStruct, Serializer},
+    Deserialize, Serialize,
+};
+use utils::BoolOperator;
+
+use crate::utils;
+
 
 pub trait Filtering {
     fn apply_to(&self, record: &Record) -> bool;
@@ -27,6 +30,20 @@ pub struct CombinedFilter<'a> {
     operator: BoolOperator,
 }
 
+impl<'a> Serialize for CombinedFilter<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer
+    {
+        let mut state = serializer.serialize_struct("CombinedFilter", 4)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("filter1", &self.filter1.name())?;
+        state.serialize_field("filter2", &self.filter2.name())?;
+        state.serialize_field("operator", &self.operator)?;
+        state.end()
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct LengthFilter<'a> {
     name: &'a str,
@@ -42,6 +59,7 @@ pub struct TagFilter<'a> {
     tag_value: TagValue<'a>,
     opposite: bool,
 }
+
 
 #[derive(Serialize, Deserialize)]
 pub struct MapqFilter<'a> {
@@ -74,7 +92,7 @@ pub struct FlagFilter<'a> {
     opposite: bool,
 }
 
-impl <'a> CombinedFilter<'a> {
+impl<'a> CombinedFilter<'a> {
     pub fn new(name: &'a str, filter1: Box<dyn Filtering>, filter2: Box<dyn Filtering>, operator: BoolOperator,
     ) -> CombinedFilter<'a> {
         assert!(matches!(operator, BoolOperator::AND | BoolOperator::OR | BoolOperator::XOR |
@@ -89,7 +107,7 @@ impl <'a> CombinedFilter<'a> {
     }
 }
 
-impl <'a>LengthFilter<'a> {
+impl<'a> LengthFilter<'a> {
     pub fn new(name: &'a str, min_len: u32, max_len: u32, opposite: bool) -> LengthFilter<'a> {
         LengthFilter {
             name,
@@ -111,7 +129,7 @@ impl<'a> TagFilter<'a> {
     }
 }
 
-impl <'a>MapqFilter<'a> {
+impl<'a> MapqFilter<'a> {
     pub fn new(name: &'a str, min_mapq: u8, max_mapq: u8, opposite: bool) -> MapqFilter {
         MapqFilter {
             name,
@@ -122,7 +140,7 @@ impl <'a>MapqFilter<'a> {
     }
 }
 
-impl <'a>RefNameFilter<'a> {
+impl<'a> RefNameFilter<'a> {
     pub fn new(name: &'a str, ref_id: i32, opposite: bool) -> RefNameFilter {
         RefNameFilter {
             name,
@@ -132,7 +150,7 @@ impl <'a>RefNameFilter<'a> {
     }
 }
 
-impl <'a>NthNucleotideFilter<'a> {
+impl<'a> NthNucleotideFilter<'a> {
     pub fn new(name: &'a str, position: i64, nucleotide: char, n_is_wildcard: bool, opposite: bool) -> NthNucleotideFilter {
         assert!(matches!(nucleotide, 'A' | 'C' | 'G' | 'T' | 'N'), "Nucleotide must be one of A, C, G, T, or N!");
         NthNucleotideFilter {
@@ -145,7 +163,7 @@ impl <'a>NthNucleotideFilter<'a> {
     }
 }
 
-impl <'a>FlagFilter<'a> {
+impl<'a> FlagFilter<'a> {
     pub fn new(name: &'a str, remove_flags: u16, opposite: bool) -> FlagFilter {
         FlagFilter {
             name,

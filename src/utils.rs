@@ -3,14 +3,19 @@ extern crate clap;
 
 use bam::record::tags::TagValue;
 use clap::ValueEnum;
+use serde::{
+    Deserialize,
+    ser::{Serializer, SerializeStruct}, Serialize,
+};
 
 #[derive(Debug, PartialEq, Clone, ValueEnum)]
 pub enum SupportedFormats {
     BAM,
-    SAM
+    SAM,
 }
 
 #[derive(Debug, PartialEq, Clone, ValueEnum)]
+#[derive(Serialize, Deserialize)]
 pub enum BoolOperator {
     AND,
     OR,
@@ -48,6 +53,7 @@ pub fn _are_tag_values_equal(a: &TagValue, b: &TagValue) -> bool {
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
+
     use super::*;
 
     #[rstest]
