@@ -1,5 +1,8 @@
 extern crate bam;
 extern crate clap;
+extern crate strum_macros;
+
+use strum_macros::EnumString;
 
 use bam::record::tags::TagValue;
 use clap::ValueEnum;
@@ -8,13 +11,13 @@ use serde::{
     ser::{Serializer, SerializeStruct}, Serialize,
 };
 
-#[derive(Debug, PartialEq, Clone, ValueEnum)]
+#[derive(Debug, PartialEq, Clone, ValueEnum, EnumString)]
 pub enum SupportedFormats {
     BAM,
     SAM,
 }
 
-#[derive(Debug, PartialEq, Clone, ValueEnum)]
+#[derive(Debug, PartialEq, Clone, ValueEnum, EnumString)]
 #[derive(Serialize, Deserialize)]
 pub enum BoolOperator {
     AND,

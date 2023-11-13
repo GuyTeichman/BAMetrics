@@ -9,6 +9,7 @@ extern crate serde_json;
 use std::path::PathBuf;
 
 use std::io::{BufRead, Read, Write};
+use std::str::FromStr;
 use serde::{Deserialize, Serialize};
 use bam::{RecordReader, RecordWriter};
 use bam::record::Record;
