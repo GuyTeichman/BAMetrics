@@ -1,19 +1,18 @@
 extern crate bam;
 extern crate serde;
-extern crate serde_json;
+extern crate typetag;
 
+use bam::record::tags::TagName;
 use bam::Record;
-use bam::record::tags::{TagName, TagValue};
-use serde::{
-    ser::{SerializeStruct, Serializer},
-    Deserialize, Serialize,
-};
+use serde::{Deserialize, Serialize};
+
 use utils::BoolOperator;
 
 use crate::utils;
+use std::collections::HashMap;
 
-
-pub trait Filtering {
+#[typetag::serde(tag = "type")]
+pub trait Filtering: CloneFilter {
     fn apply_to(&self, record: &Record) -> bool;
 
     fn repr(&self) -> String;
@@ -21,83 +20,117 @@ pub trait Filtering {
     fn name(&self) -> &str;
 }
 
+pub trait CloneFilter {
+    fn box_clone<'a>(&self) -> Box<dyn Filtering>;
+}
+
+impl<T> CloneFilter for T
+    where
+        T: Filtering + Clone + 'static,
+{
+    fn box_clone(&self) -> Box<dyn Filtering> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn Filtering> {
+    fn clone(&self) -> Self {
+        self.box_clone()
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Config {
+    filters: HashMap<String, Box<dyn Filtering>>,
+}
+
+impl Config {
+    pub fn new() -> Config {
+        Config {
+            filters: HashMap::new(),
+        }
+    }
+
+    pub fn count(&self) -> usize {
+        self.filters.len()
+    }
+    pub fn push(&mut self, key: &str, value: Box<dyn Filtering>) {
+        self.filters.insert(key.to_string(), value);
+    }
+
+    pub fn get(&self, key: &str) -> Option<Box<dyn Filtering>> {
+        self.filters.get(&key.to_string()).cloned()
+    }
+
+    pub fn iter(&self) -> std::collections::hash_map::Iter<String, Box<dyn Filtering>> {
+        self.filters.iter()
+    }
+}
+
 // TODO: uniquely aligned
 // TODO: individual flag functions
-pub struct CombinedFilter<'a> {
-    name: &'a str,
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CombinedFilter {
+    name: String,
     filter1: Box<dyn Filtering>,
     filter2: Box<dyn Filtering>,
     operator: BoolOperator,
 }
 
-impl<'a> Serialize for CombinedFilter<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer
-    {
-        let mut state = serializer.serialize_struct("CombinedFilter", 4)?;
-        state.serialize_field("name", &self.name)?;
-        state.serialize_field("filter1", &self.filter1.name())?;
-        state.serialize_field("filter2", &self.filter2.name())?;
-        state.serialize_field("operator", &self.operator)?;
-        state.end()
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct LengthFilter<'a> {
-    name: &'a str,
+#[derive(Serialize, Deserialize, Clone)]
+pub struct LengthFilter {
+    name: String,
     min_len: u32,
     max_len: u32,
     opposite: bool,
 }
 
-
-pub struct TagFilter<'a> {
-    name: &'a str,
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TagFilter {
+    name: String,
     tag_name: TagName,
-    tag_value: TagValue<'a>,
+    tag_value: utils::MinimalTagValue,
     opposite: bool,
 }
 
-
-#[derive(Serialize, Deserialize)]
-pub struct MapqFilter<'a> {
-    name: &'a str,
+#[derive(Serialize, Deserialize, Clone)]
+pub struct MapqFilter {
+    name: String,
     min_mapq: u8,
     max_mapq: u8,
     opposite: bool,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct RefNameFilter<'a> {
-    name: &'a str,
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RefNameFilter {
+    name: String,
     ref_id: i32,
     opposite: bool,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct NthNucleotideFilter<'a> {
-    name: &'a str,
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NthNucleotideFilter {
+    name: String,
     position: i64,
     nucleotide: char,
     n_is_wildcard: bool,
     opposite: bool,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct FlagFilter<'a> {
-    name: &'a str,
+#[derive(Serialize, Deserialize, Clone)]
+pub struct FlagFilter {
+    name: String,
     remove_flags: u16,
     opposite: bool,
 }
 
-impl<'a> CombinedFilter<'a> {
-    pub fn new(name: &'a str, filter1: Box<dyn Filtering>, filter2: Box<dyn Filtering>, operator: BoolOperator,
-    ) -> CombinedFilter<'a> {
-        assert!(matches!(operator, BoolOperator::AND | BoolOperator::OR | BoolOperator::XOR |
-            BoolOperator::XNOR | BoolOperator::NAND | BoolOperator::NOR | BoolOperator::IMPLIES),
-                "Operator must be one of AND, OR, XOR, XNOR, NAND, NOR, or IMPLIES!");
+impl CombinedFilter {
+    pub fn new(
+        name: String,
+        filter1: Box<dyn Filtering>,
+        filter2: Box<dyn Filtering>,
+        operator: BoolOperator,
+    ) -> CombinedFilter {
         CombinedFilter {
             name,
             filter1,
@@ -107,8 +140,8 @@ impl<'a> CombinedFilter<'a> {
     }
 }
 
-impl<'a> LengthFilter<'a> {
-    pub fn new(name: &'a str, min_len: u32, max_len: u32, opposite: bool) -> LengthFilter<'a> {
+impl LengthFilter {
+    pub fn new(name: String, min_len: u32, max_len: u32, opposite: bool) -> LengthFilter {
         LengthFilter {
             name,
             min_len,
@@ -118,8 +151,13 @@ impl<'a> LengthFilter<'a> {
     }
 }
 
-impl<'a> TagFilter<'a> {
-    pub fn new(name: &'a str, tag_name: TagName, tag_value: TagValue<'a>, opposite: bool) -> TagFilter<'a> {
+impl TagFilter {
+    pub fn new(
+        name: String,
+        tag_name: TagName,
+        tag_value: utils::MinimalTagValue,
+        opposite: bool,
+    ) -> TagFilter {
         TagFilter {
             name,
             tag_name,
@@ -129,8 +167,8 @@ impl<'a> TagFilter<'a> {
     }
 }
 
-impl<'a> MapqFilter<'a> {
-    pub fn new(name: &'a str, min_mapq: u8, max_mapq: u8, opposite: bool) -> MapqFilter {
+impl MapqFilter {
+    pub fn new(name: String, min_mapq: u8, max_mapq: u8, opposite: bool) -> MapqFilter {
         MapqFilter {
             name,
             min_mapq,
@@ -140,8 +178,8 @@ impl<'a> MapqFilter<'a> {
     }
 }
 
-impl<'a> RefNameFilter<'a> {
-    pub fn new(name: &'a str, ref_id: i32, opposite: bool) -> RefNameFilter {
+impl RefNameFilter {
+    pub fn new(name: String, ref_id: i32, opposite: bool) -> RefNameFilter {
         RefNameFilter {
             name,
             ref_id,
@@ -150,9 +188,18 @@ impl<'a> RefNameFilter<'a> {
     }
 }
 
-impl<'a> NthNucleotideFilter<'a> {
-    pub fn new(name: &'a str, position: i64, nucleotide: char, n_is_wildcard: bool, opposite: bool) -> NthNucleotideFilter {
-        assert!(matches!(nucleotide, 'A' | 'C' | 'G' | 'T' | 'N'), "Nucleotide must be one of A, C, G, T, or N!");
+impl NthNucleotideFilter {
+    pub fn new(
+        name: String,
+        position: i64,
+        nucleotide: char,
+        n_is_wildcard: bool,
+        opposite: bool,
+    ) -> NthNucleotideFilter {
+        assert!(
+            matches!(nucleotide, 'A' | 'C' | 'G' | 'T' | 'N'),
+            "Nucleotide must be one of A, C, G, T, or N!"
+        );
         NthNucleotideFilter {
             name,
             position,
@@ -163,8 +210,8 @@ impl<'a> NthNucleotideFilter<'a> {
     }
 }
 
-impl<'a> FlagFilter<'a> {
-    pub fn new(name: &'a str, remove_flags: u16, opposite: bool) -> FlagFilter {
+impl FlagFilter {
+    pub fn new(name: String, remove_flags: u16, opposite: bool) -> FlagFilter {
         FlagFilter {
             name,
             remove_flags,
@@ -173,7 +220,8 @@ impl<'a> FlagFilter<'a> {
     }
 }
 
-impl<'a> Filtering for CombinedFilter<'a> {
+#[typetag::serde]
+impl Filtering for CombinedFilter {
     fn apply_to(&self, record: &Record) -> bool {
         let result1 = self.filter1.apply_to(record);
         let result2 = self.filter2.apply_to(record);
@@ -189,14 +237,21 @@ impl<'a> Filtering for CombinedFilter<'a> {
     }
 
     fn repr(&self) -> String {
-        format!("CombinedFilter(name={}, filter1={}, filter2={}, operator={:?})", self.name, self.filter1.name(), self.filter2.name(), self.operator)
+        format!(
+            "CombinedFilter(name={}, filter1={}, filter2={}, operator={:?})",
+            self.name,
+            self.filter1.name(),
+            self.filter2.name(),
+            self.operator
+        )
     }
     fn name(&self) -> &str {
-        self.name
+        &self.name
     }
 }
 
-impl<'a> Filtering for FlagFilter<'a> {
+#[typetag::serde]
+impl Filtering for FlagFilter {
     fn apply_to(&self, record: &Record) -> bool {
         let flags = record.flag();
         return if flags.no_bits(self.remove_flags) {
@@ -207,15 +262,18 @@ impl<'a> Filtering for FlagFilter<'a> {
     }
 
     fn repr(&self) -> String {
-        format!("FlagFilter(name={}, remove_flags={}, opposite={})", self.name, self.remove_flags, self.opposite)
+        format!(
+            "FlagFilter(name={}, remove_flags={}, opposite={})",
+            self.name, self.remove_flags, self.opposite
+        )
     }
     fn name(&self) -> &str {
         &self.name
     }
 }
 
-
-impl<'a> Filtering for LengthFilter<'a> {
+#[typetag::serde]
+impl Filtering for LengthFilter {
     fn apply_to(&self, record: &Record) -> bool {
         let read_len = record.query_len();
         return if read_len < self.min_len || read_len > self.max_len {
@@ -226,17 +284,22 @@ impl<'a> Filtering for LengthFilter<'a> {
     }
 
     fn repr(&self) -> String {
-        format!("LengthFilter(name={}, min_len={}, max_len={}, opposite={})", self.name, self.min_len, self.max_len, self.opposite)
+        format!(
+            "LengthFilter(name={}, min_len={}, max_len={}, opposite={})",
+            self.name, self.min_len, self.max_len, self.opposite
+        )
     }
     fn name(&self) -> &str {
         &self.name
     }
 }
 
-impl<'a> Filtering for TagFilter<'a> {
+#[typetag::serde]
+impl Filtering for TagFilter {
     fn apply_to(&self, record: &Record) -> bool {
         return if let Some(tag) = record.tags().get(&self.tag_name) {
-            if utils::_are_tag_values_equal(&tag, &self.tag_value) {
+            let expanded_tag_val = utils::_minimal_tag_to_tag(&self.tag_value);
+            if utils::_are_tag_values_equal(&tag, &expanded_tag_val) {
                 utils::_opposite(true, self.opposite)
             } else {
                 utils::_opposite(false, self.opposite)
@@ -247,22 +310,18 @@ impl<'a> Filtering for TagFilter<'a> {
     }
 
     fn repr(&self) -> String {
-        let formatted_tag = match self.tag_value {
-            TagValue::Char(c) => format!("'{}'", c),
-            TagValue::Int(i, _) => format!("{}", i),
-            TagValue::Float(f) => format!("{}", f),
-            TagValue::String(s, _) => format!("'{:#?}'", s),
-            TagValue::IntArray(_) => format!("IntArray"),
-            TagValue::FloatArray(_) => format!("FloatArray"),
-        };
-        format!("TagFilter(name={}, tag_name={:#?}, tag_value={}, opposite={})", self.name, self.tag_name, formatted_tag, self.opposite)
+        format!(
+            "TagFilter(name={}, tag_name={:#?}, tag_value={}, opposite={})",
+            self.name, self.tag_name, self.tag_value, self.opposite
+        )
     }
     fn name(&self) -> &str {
         &self.name
     }
 }
 
-impl<'a> Filtering for MapqFilter<'a> {
+#[typetag::serde]
+impl Filtering for MapqFilter {
     fn apply_to(&self, record: &Record) -> bool {
         let mapq = record.mapq();
         return if mapq < self.min_mapq || mapq > self.max_mapq {
@@ -273,28 +332,36 @@ impl<'a> Filtering for MapqFilter<'a> {
     }
 
     fn repr(&self) -> String {
-        format!("MapqFilter(name={}, min_mapq={}, max_mapq={}, opposite={})", self.name, self.min_mapq, self.max_mapq, self.opposite)
+        format!(
+            "MapqFilter(name={}, min_mapq={}, max_mapq={}, opposite={})",
+            self.name, self.min_mapq, self.max_mapq, self.opposite
+        )
     }
     fn name(&self) -> &str {
         &self.name
     }
 }
 
-impl<'a> Filtering for RefNameFilter<'a> {
+#[typetag::serde]
+impl Filtering for RefNameFilter {
     fn apply_to(&self, record: &Record) -> bool {
         let this_ref_id = record.ref_id();
         return utils::_opposite(this_ref_id == self.ref_id, self.opposite);
     }
 
     fn repr(&self) -> String {
-        format!("RefNameFilter(name={}, ref_id={}, opposite={})", self.name, self.ref_id, self.opposite)
+        format!(
+            "RefNameFilter(name={}, ref_id={}, opposite={})",
+            self.name, self.ref_id, self.opposite
+        )
     }
     fn name(&self) -> &str {
         &self.name
     }
 }
 
-impl<'a> Filtering for NthNucleotideFilter<'a> {
+#[typetag::serde]
+impl Filtering for NthNucleotideFilter {
     fn apply_to(&self, record: &Record) -> bool {
         let seq = record.sequence();
         if !seq.available() {
@@ -305,28 +372,24 @@ impl<'a> Filtering for NthNucleotideFilter<'a> {
         if self.position.abs() >= len {
             return utils::_opposite(false, self.opposite);
         }
+        // todo: does negative index work in rust?
         //todo: check if read was aligned to reverse strand?
 
-        return if let this_nuc = seq.at(self.position as usize) as char {
-            return if self.n_is_wildcard && (this_nuc == 'N') {
-                utils::_opposite(true, self.opposite)
-            } else {
-                utils::_opposite(this_nuc == self.nucleotide, self.opposite)
-            };
+        let this_nuc = seq.at(self.position as usize) as char;
+        return if self.n_is_wildcard && (this_nuc == 'N') {
+            utils::_opposite(true, self.opposite)
         } else {
-            utils::_opposite(false, self.opposite)
+            utils::_opposite(this_nuc == self.nucleotide, self.opposite)
         };
     }
 
     fn repr(&self) -> String {
-        format!("NthNucleotideFilter(name={}, position={}, nucleotide={:?}, opposite={})", self.name, self.position, self.nucleotide, self.opposite)
+        format!(
+            "NthNucleotideFilter(name={}, position={}, nucleotide={:?}, opposite={})",
+            self.name, self.position, self.nucleotide, self.opposite
+        )
     }
     fn name(&self) -> &str {
         &self.name
     }
 }
-
-
-
-
-
