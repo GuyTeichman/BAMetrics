@@ -363,19 +363,28 @@ impl Filtering for RefNameFilter {
 #[typetag::serde]
 impl Filtering for NthNucleotideFilter {
     fn apply_to(&self, record: &Record) -> bool {
-        let seq = record.sequence();
-        if !seq.available() {
+        assert_ne!(self.position, 0, "Position must be non-zero!");
+        let len = record.query_len() as i64;
+        if self.position.abs() > len {
+            return utils::_opposite(false, self.opposite);
+        }
+        if !record.sequence().available() {
             return utils::_opposite(false, self.opposite);
         }
 
-        let len = seq.len() as i64;
-        if self.position.abs() >= len {
-            return utils::_opposite(false, self.opposite);
-        }
-        // todo: does negative index work in rust?
-        //todo: check if read was aligned to reverse strand?
+        let position = if self.position < 0 {
+            len + self.position
+        } else {
+            self.position - 1
+        };
 
-        let this_nuc = seq.at(self.position as usize) as char;
+        let this_nuc = if record.flag().is_reverse_strand() {
+            let range = (len - position - 1) as usize..(len - position) as usize;
+            record.sequence().rev_compl(range).next().unwrap() as char
+        } else {
+            record.sequence().at(position as usize) as char
+        };
+
         return if self.n_is_wildcard && (this_nuc == 'N') {
             utils::_opposite(true, self.opposite)
         } else {
