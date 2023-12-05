@@ -19,17 +19,22 @@ jobs:
           os: [ ubuntu-latest, windows-latest, macos-latest ]
 
     steps:
-    - name: Set up coverage path
+    - name: Set up environment variables
       run: |
         echo "COVERAGE_PATH=${GITHUB_WORKSPACE}/coverage/lcov.info" >> $GITHUB_ENV
         mkdir -p ${GITHUB_WORKSPACE}/coverage
+        echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
+        echo "RUSTFLAGS=-C instrument-coverage" >> $GITHUB_ENV
+        echo "LLVM_PROFILE_FILE=${{ github.workspace }}/coverage/%p-%m.profraw" >> $GITHUB_ENV
       if: runner.os == 'Linux' || runner.os == 'macOS'
 
-    - name: Set up coverage path for Windows
+    - name: Set up environment variables for Windows
       run: |
         echo "COVERAGE_PATH=${GITHUB_WORKSPACE}/coverage/lcov.info" >> $env:GITHUB_ENV
+        echo "CARGO_INCREMENTAL=0" >> $env:GITHUB_ENV
+        echo "RUSTFLAGS=-C instrument-coverage" >> $env:GITHUB_ENV
+        echo "LLVM_PROFILE_FILE=${{ github.workspace }}/coverage/%p-%m.profraw" >> $env:GITHUB_ENV
         mkdir -p ${GITHUB_WORKSPACE}/coverage
-        echo $COVERAGE_PATH
       if: runner.os == 'Windows'
     - name: Install Rust nightly toolchain
       uses: actions-rs/toolchain@v1
@@ -39,11 +44,7 @@ jobs:
         override: true
     - name: Checkout repository
       uses: actions/checkout@v3
-    - name: Set up environment for code coverage
-      run: |
-        echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
-        echo "RUSTFLAGS=-C instrument-coverage" >> $GITHUB_ENV
-        echo "LLVM_PROFILE_FILE=${{ github.workspace }}/coverage/%p-%m.profraw" >> $GITHUB_ENV
+      run: echo "LLVM_PROFILE_FILE=${{ github.workspace }}/coverage/%p-%m.profraw" >> $GITHUB_ENV
     - name: Install LLVM tools
       run: rustup component add llvm-tools-preview
     - name: Build
