@@ -44,7 +44,6 @@ jobs:
         override: true
     - name: Checkout repository
       uses: actions/checkout@v3
-      run: echo "LLVM_PROFILE_FILE=${{ github.workspace }}/coverage/%p-%m.profraw" >> $GITHUB_ENV
     - name: Install LLVM tools
       run: rustup component add llvm-tools-preview
     - name: Build
