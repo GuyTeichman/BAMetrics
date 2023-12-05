@@ -19,3 +19,4 @@ typetag = "0.2.13"
 
 [dev-dependencies]
 rstest = "0.18"
+grcov = "0.8.19"
