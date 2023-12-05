@@ -32,6 +32,8 @@ jobs:
         echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
         echo "RUSTFLAGS=-C instrument-coverage" >> $GITHUB_ENV
         echo "LLVM_PROFILE_FILE=${{ github.workspace }}/coverage/%p-%m.profraw" >> $GITHUB_ENV
+    - name: Install LLVM tools
+      run: rustup component add llvm-tools-preview
     - name: Build
       run: cargo build --verbose
     - name: Run tests
@@ -39,7 +41,7 @@ jobs:
     - name: Collecting code coverage
       run: |
         cargo install grcov
-        grcov ${GITHUB_WORKSPACE}/coverage/ -b ./target/debug/deps/ -s . -t coveralls --llvm --branch --ignore-not-existing --output-path ./coverage.json --token ${{ secrets.COVERALLS_REPO_TOKEN }}
+        grcov ${GITHUB_WORKSPACE}/coverage/ -b ./target/debug/deps/ -s . -t coveralls+ --llvm --branch --ignore-not-existing --output-path ./coverage.json --token ${{ secrets.COVERALLS_REPO_TOKEN }}
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@master
       with:
