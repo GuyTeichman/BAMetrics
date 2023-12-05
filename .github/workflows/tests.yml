@@ -19,6 +19,12 @@ jobs:
           os: [ ubuntu-latest, windows-latest, macos-latest ]
 
     steps:
+    - name: Install Rust nightly toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        override: true
     - name: Checkout repository
       uses: actions/checkout@v3
     - name: Set up environment for code coverage
