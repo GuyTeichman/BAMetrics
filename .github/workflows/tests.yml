@@ -27,7 +27,7 @@ jobs:
 
     - name: Set up coverage path for Windows
       run: |
-        echo "COVERAGE_PATH=${GITHUB_WORKSPACE}/coverage/lcov.info" >> $GITHUB_ENV
+        echo "COVERAGE_PATH=${GITHUB_WORKSPACE}/coverage/lcov.info" >> $env:GITHUB_ENV
         mkdir -p ${GITHUB_WORKSPACE}/coverage
         echo $COVERAGE_PATH
       if: runner.os == 'Windows'
