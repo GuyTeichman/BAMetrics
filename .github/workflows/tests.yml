@@ -19,6 +19,15 @@ jobs:
           os: [ ubuntu-latest, windows-latest, macos-latest ]
 
     steps:
+    - name: Set up coverage path
+      run: echo "COVERAGE_PATH=./coverage/" >> $GITHUB_ENV
+      if: runner.os == 'Linux' || runner.os == 'macOS'
+
+    - name: Set up coverage path for Windows
+      run: |
+        echo "COVERAGE_PATH=D:/coverage/" >> $GITHUB_ENV
+        mkdir -p D:/coverage
+      if: runner.os == 'Windows
     - name: Install Rust nightly toolchain
       uses: actions-rs/toolchain@v1
       with:
@@ -40,16 +49,15 @@ jobs:
       run: cargo test --verbose
     - name: Collecting code coverage
       run: |
-        mkdir -p ./coverage
         cargo install grcov
-        grcov ${GITHUB_WORKSPACE}/coverage/ -b ./target/debug/deps/ -s . -t lcov --llvm --branch --ignore-not-existing --output-path ./coverage/lcov.info --token ${{ secrets.COVERALLS_REPO_TOKEN }}
+        grcov ${GITHUB_WORKSPACE}/coverage/ -b ./target/debug/deps/ -s . -t lcov --llvm --branch --ignore-not-existing --output-path ${{ env.COVERAGE_PATH }} --token ${{ secrets.COVERALLS_REPO_TOKEN }}
     - name: Print lcov.info for debugging
       run: head -n 100 ./coverage/lcov.info
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./coverage/lcov.info
+        file: ${{ env.COVERAGE_PATH }}
         flag-name: run-${{ matrix.rust }}
         parallel: true
 
