@@ -43,6 +43,8 @@ jobs:
         mkdir -p ./coverage
         cargo install grcov
         grcov ${GITHUB_WORKSPACE}/coverage/ -b ./target/debug/deps/ -s . -t lcov --llvm --branch --ignore-not-existing --output-path ./coverage/lcov.info --token ${{ secrets.COVERALLS_REPO_TOKEN }}
+    - name: Print lcov.info for debugging
+      run: head -n 100 ./coverage/lcov.info
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@master
       with:
