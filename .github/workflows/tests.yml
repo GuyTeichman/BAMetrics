@@ -20,12 +20,12 @@ jobs:
 
     steps:
     - name: Set up coverage path
-      run: echo "COVERAGE_PATH=./coverage/lcov.info" >> $GITHUB_ENV
+      run: echo "COVERAGE_PATH=${GITHUB_WORKSPACE}/coverage/coverage/lcov.info" >> $GITHUB_ENV
       if: runner.os == 'Linux' || runner.os == 'macOS'
 
     - name: Set up coverage path for Windows
       run: |
-        echo "COVERAGE_PATH=D:\coverage\lcov.info" >> $GITHUB_ENV
+        echo "COVERAGE_PATH=${GITHUB_WORKSPACE}/coverage/lcov.info" >> $GITHUB_ENV
         mkdir -p D:/coverage
       if: runner.os == 'Windows'
     - name: Install Rust nightly toolchain
