@@ -27,7 +27,7 @@ jobs:
       run: |
         echo "COVERAGE_PATH=D:/coverage/" >> $GITHUB_ENV
         mkdir -p D:/coverage
-      if: runner.os == 'Windows
+      if: runner.os == 'Windows'
     - name: Install Rust nightly toolchain
       uses: actions-rs/toolchain@v1
       with:
