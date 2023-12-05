@@ -40,12 +40,13 @@ jobs:
       run: cargo test --verbose
     - name: Collecting code coverage
       run: |
+        mkdir ./coverage
         cargo install grcov
-        grcov ${GITHUB_WORKSPACE}/coverage/ -b ./target/debug/deps/ -s . -t lcov --llvm --branch --ignore-not-existing --output-path ./coverage.json --token ${{ secrets.COVERALLS_REPO_TOKEN }}
+        grcov ${GITHUB_WORKSPACE}/coverage/ -b ./target/debug/deps/ -s . -t lcov --llvm --branch --ignore-not-existing --output-path ./coverage/lcov.info --token ${{ secrets.COVERALLS_REPO_TOKEN }}
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./coverage.json
+        path-to-lcov: ./coverage/lcov.info
         flag-name: run-${{ matrix.rust }}
         parallel: true
