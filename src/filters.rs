@@ -402,3 +402,92 @@ impl Filtering for NthNucleotideFilter {
         &self.name
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rstest::{fixture, rstest};
+
+    use super::*;
+
+    #[fixture]
+    fn opposite_base() -> bool { false }
+
+    #[fixture]
+    fn length_filter(opposite_base: bool) -> LengthFilter {
+        LengthFilter::new("test 1".to_string(), 18, 24, opposite_base)
+    }
+
+    #[fixture]
+    fn mapq_filter(opposite_base: bool) -> MapqFilter {
+        MapqFilter::new("test 2".to_string(), 4, 20, opposite_base)
+    }
+
+    #[fixture]
+    fn ref_name_filter(opposite_base: bool) -> RefNameFilter {
+        RefNameFilter::new("test 3".to_string(), 0, opposite_base)
+    }
+
+    #[fixture]
+    fn nth_nucleotide_filter(opposite_base: bool) -> NthNucleotideFilter {
+        NthNucleotideFilter::new("test 4".to_string(), 1, 'G', false, opposite_base)
+    }
+
+    #[fixture]
+    fn record_1() -> Record {
+        let mut record = Record::new();
+        record.set_seq_qual("ACGT".bytes(), [10_u8, 20, 30, 10].iter().cloned()).unwrap();
+        record.set_ref_id(0);
+        record.set_mapq(20);
+        record.set_flag(0);
+        // record.tags_mut().push_num(TagName::tryFrom("NM").unwrap(),0);
+        record
+    }
+
+    #[fixture]
+    fn record_2() -> Record {
+        let mut record = Record::new();
+        record.set_seq_qual("GACGTAAGGGCATTACGANN".bytes(),
+                            [10_u8, 20, 30, 10, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30].iter().cloned()).unwrap();
+        record.set_ref_id(0);
+        record.set_mapq(0);
+        record.set_flag(1040);
+        // record.tags_mut().push_num(TagName::tryFrom("NM").unwrap(),0);
+        record
+    }
+
+    #[rstest]
+    #[case(false, false)]
+    #[case(true, true)]
+    fn test_length_filter_below_range(#[case] opposite: bool, #[case]
+    expected: bool, #[with(opposite)] length_filter: LengthFilter, record_1: Record) {
+        assert_eq!(length_filter.apply_to(&record_1), expected);
+    }
+
+    #[rstest]
+    #[case(false, true)]
+    #[case(true, false)]
+    fn test_length_filter_within_range(#[case] opposite: bool, #[case]
+    expected: bool, #[with(opposite)] length_filter: LengthFilter, record_2: Record) {
+        assert_eq!(length_filter.apply_to(&record_2), expected);
+    }
+
+    #[rstest]
+    #[case(false, false)]
+    #[case(true, true)]
+    fn test_mapq_filter_below_range(#[case] opposite: bool, #[case]
+    expected: bool, #[with(opposite)] mapq_filter: MapqFilter, record_2: Record) {
+        assert_eq!(mapq_filter.apply_to(&record_2), expected);
+    }
+
+
+    #[rstest]
+    #[case(false, true)]
+    #[case(true, false)]
+    fn test_mapq_filter_within_range(#[case] opposite: bool, #[case]
+    expected: bool, #[with(opposite)] mapq_filter: MapqFilter, record_1: Record) {
+        assert_eq!(mapq_filter.apply_to(&record_1), expected);
+    }
+}
+
+// #[cfg(test)]
+
