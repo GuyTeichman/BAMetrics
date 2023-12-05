@@ -52,3 +52,15 @@ jobs:
         path-to-lcov: ./coverage/lcov.info
         flag-name: run-${{ matrix.rust }}
         parallel: true
+
+  finish:
+    name: Finish submitting coverage
+    if: ${{ always() }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      -   name: Coveralls Finished
+          uses: coverallsapp/github-action@v2
+          continue-on-error: true
+          with:
+            parallel-finished: true
