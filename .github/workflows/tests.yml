@@ -20,12 +20,12 @@ jobs:
 
     steps:
     - name: Set up coverage path
-      run: echo "COVERAGE_PATH=${GITHUB_WORKSPACE}/coverage/coverage/lcov.info" >> $GITHUB_ENV
+      run: echo "COVERAGE_PATH=target/coverage/lcov.info" >> $GITHUB_ENV
       if: runner.os == 'Linux' || runner.os == 'macOS'
 
     - name: Set up coverage path for Windows
       run: |
-        echo "COVERAGE_PATH=${GITHUB_WORKSPACE}/coverage/lcov.info" >> $GITHUB_ENV
+        echo "COVERAGE_PATH=target/coverage/lcov.info" >> $GITHUB_ENV
         mkdir -p D:/coverage
         echo $COVERAGE_PATH
       if: runner.os == 'Windows'
@@ -51,7 +51,7 @@ jobs:
     - name: Collecting code coverage
       run: |
         cargo install grcov
-        grcov ${GITHUB_WORKSPACE}/coverage/ -b ./target/debug/deps/ -s . --keep-only ./src/* -t lcov --llvm --branch --ignore-not-existing --output-path ${{ env.COVERAGE_PATH }} --token ${{ secrets.COVERALLS_REPO_TOKEN }}
+        grcov target/coverage/ -b target/debug/ -s . --keep-only 'src/*' -t lcov --llvm --branch --ignore-not-existing --output-path ${{ env.COVERAGE_PATH }} --token ${{ secrets.COVERALLS_REPO_TOKEN }}
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
       with:
